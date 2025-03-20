@@ -208,21 +208,20 @@ def process_blocks_with_sliding_window(blocks: List[Image.Image]) -> List[str]:
     """Process blocks using 2x2 grid sliding window approach"""
     results = []
     num_blocks = len(blocks)
-    num_cols = int(np.ceil(np.sqrt(num_blocks)))  # Calculate grid dimensions
+    num_cols = int(np.ceil(np.sqrt(num_blocks)))  
     
     print(f"Processing {num_blocks} blocks in {num_cols}x{num_cols} grid")
     
     def combine_grid_blocks(grid_blocks):
-        """Combine 2x2 grid of blocks into single image"""
         if not grid_blocks or len(grid_blocks) < 4:
             return None
             
-        # Calculate dimensions for combined image
+        
         block_width = grid_blocks[0].width
         block_height = grid_blocks[0].height
         combined_image = Image.new('RGB', (block_width * 2, block_height * 2))
         
-        # Paste blocks in 2x2 grid
+        
         positions = [
             (0, 0),      # top left
             (block_width, 0),  # top right
@@ -235,18 +234,17 @@ def process_blocks_with_sliding_window(blocks: List[Image.Image]) -> List[str]:
             
         return combined_image
     
-    # Process blocks in 2x2 grid windows
+    
     for row in range(0, num_cols - 1, 2):
         for col in range(0, num_cols - 1, 2):
-            # Get indices for current 2x2 grid
-            indices = [
-                row * num_cols + col,           # top left
-                row * num_cols + col + 1,       # top right
-                (row + 1) * num_cols + col,     # bottom left
-                (row + 1) * num_cols + col + 1  # bottom right
-            ]
             
-            # Get blocks for current grid
+            indices = [
+                row * num_cols + col,          
+                row * num_cols + col + 1,       
+                (row + 1) * num_cols + col,     
+                (row + 1) * num_cols + col + 1  
+            ]
+
             grid_blocks = [blocks[i] for i in indices if i < num_blocks]
             
             if len(grid_blocks) < 4:
@@ -256,7 +254,6 @@ def process_blocks_with_sliding_window(blocks: List[Image.Image]) -> List[str]:
             combined_image = combine_grid_blocks(grid_blocks)
             
             if combined_image:
-                # Process combined image
                 buffer = io.BytesIO()
                 combined_image.save(buffer, format="PNG")
                 block_bytes = buffer.getvalue()
@@ -270,8 +267,7 @@ def process_blocks_with_sliding_window(blocks: List[Image.Image]) -> List[str]:
                     results.append(remove_markdown(result))
                 except Exception as e:
                     print(f"Error processing grid at ({row}, {col}): {str(e)}")
-    
-    # Process any remaining blocks in the last row/column if needed
+
     remaining_blocks = []
     last_full_grid = ((num_cols - 1) // 2) * 2
     
