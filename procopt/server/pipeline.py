@@ -20,11 +20,10 @@ from procopt.server.prompts import (
     prompt__identify_bottlenecks,
     prompt__generate_improvements,
     prompt__merge_transcribed_process_map_blocks,
-    prompt__sort_improvements,
     prompt__transcribe_process_map
 )
 
-BLOCK_SIZE = 1000  # Adjusted for 2x2 grid processing
+BLOCK_SIZE = 1000  
 
 def format_improvement_as_markdown(improvement: ImprovementModel) -> str:
     """Given an ImprovementModel, format it as a markdown string"""
@@ -73,22 +72,18 @@ def format_step_as_markdown(step: StepModel) -> str:
 
 def merge_block_results(block_results: List[TranscriptionOutputModel]) -> List[StepModel]:
     """Synthesize results from blocks into a coherent process description"""
-    # Merge all steps from different blocks
     all_steps = []
     for result in block_results:
         if result.is_valid:
             all_steps.extend(result.steps)
-    
-    # Sort steps by step number and deduplicate
+
     all_steps.sort(key=lambda x: x.step_number)
     seen_steps = {}
     for step in all_steps:
-        # Use step number as key, keep most complete version of each step
         if step.step_number not in seen_steps:
             seen_steps[step.step_number] = step
         else:
             existing = seen_steps[step.step_number]
-            # Update existing step with any new information
             if step.operator and not existing.operator:
                 existing.operator = step.operator
             if step.system and not existing.system:
@@ -102,13 +97,11 @@ def merge_block_results(block_results: List[TranscriptionOutputModel]) -> List[S
             existing.pain_points.extend([p for p in step.pain_points if p not in existing.pain_points])
             existing.transitions.extend([t for t in step.transitions if t not in existing.transitions])
     
-    # Convert steps to markdown format
     markdown_lines: List[str] = [
         format_step_as_markdown(seen_steps[step_num])
         for step_num in sorted(seen_steps.keys())
     ]
     
-    # Use LLM to merge chunks together
     print(f"Merging {len(markdown_lines)} chunks together...")
     merged_transcription = call_llm(
         messages=[
@@ -126,8 +119,7 @@ def run_pipeline(app, run_id: int, pipeline_step: str) -> Tuple[str, str]:
     """Process a task based on its type"""
     with app.app_context():
         run = db.session.get(ProcessRun, run_id)
-            
-        # If run not found, return error
+        
         if not run:
             print(f"Run not found for run_id=`{run_id}`")
             return
@@ -135,25 +127,19 @@ def run_pipeline(app, run_id: int, pipeline_step: str) -> Tuple[str, str]:
         try:
             print(f"Starting run_pipeline() for run_id=`{run_id}`, pipeline_step=`{pipeline_step}`")
 
-            # Read image file
             with open(run.image_path, "rb") as f:
                 image_bytes = f.read()
             
             if pipeline_step == "transcribe":
-                #
-                # Transcribe image => textual process map
-                #
                 run.status = "transcribing"
                 db.session.commit()
                 print("Starting transcription process")
                 
-                # Split image into blocks
                 blocks = split_image_into_blocks(image_bytes, block_size=BLOCK_SIZE)
                 print(f"Split image into {len(blocks)} blocks")
                 
                 block_results: List[TranscriptionOutputModel] = []
-                
-                # Transcribe each block
+
                 for block_image in tqdm(blocks, desc="Transcribing blocks", total=len(blocks)):
                     buffer = io.BytesIO()
                     block_image.save(buffer, format="PNG")
@@ -183,16 +169,12 @@ def run_pipeline(app, run_id: int, pipeline_step: str) -> Tuple[str, str]:
                             print(f"Invalid transcription for block {len(block_results)}/{len(blocks)}")
                     except Exception as e:
                         print(f"Direct API call error: {str(e)}")
-                
-                # Synthesize results into coherent markdown
+
                 merged_steps: List[StepModel] = merge_block_results(block_results)
                 run.transcription = '\n'.join(format_step_as_markdown(step) for step in merged_steps)
                 run.status = "transcribed"
                 
             elif pipeline_step == "bottlenecks":
-                #
-                # Identify bottlenecks in the process map
-                #
                 run.status = "bottlenecks"
                 db.session.commit()
                 
@@ -208,9 +190,6 @@ def run_pipeline(app, run_id: int, pipeline_step: str) -> Tuple[str, str]:
                 run.status = "bottlenecks_complete"
                 
             elif pipeline_step == "improvements":
-                #
-                # Generate improvements for the bottlenecks
-                #
                 run.status = "improvements"
                 db.session.commit()
                 
@@ -225,14 +204,6 @@ def run_pipeline(app, run_id: int, pipeline_step: str) -> Tuple[str, str]:
                 )
                 print(f"Generated {len(raw_improvements.improvements)} improvements for run_id=`{run_id}`")
 
-                # sorted_improvements = call_llm(
-                #     messages=[
-                #         sys_prompt(),
-                #         get_user_text_prompt(prompt__sort_improvements( run.transcription, run.bottlenecks, raw_improvements.model_dump() ))
-                #     ],
-                #     model=MODEL,
-                #     response_format=TranscriptionOutputModel
-                # )
                 run.improvements = '\n'.join([ format_improvement_as_markdown(improvement) for improvement in raw_improvements.improvements ])
                 run.status = "complete"
             
