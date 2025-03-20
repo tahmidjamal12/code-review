@@ -1,3 +1,5 @@
+#### The below is shown how to use the whole application end-to-end if you wish to try it out yourself. I wrote my code in procopt/server folder. More specifically I wrote app.py, llm_utils.py, utils.py, models.py and pipeline.py files so those are the ones part of review.
+
 # Process Optimization Tool
 
 Flask + React app for helping with process optimization projects using VLMs.
