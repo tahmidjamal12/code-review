@@ -13,7 +13,6 @@ if not os.getenv('OPENAI_API_KEY'):
 def create_app():
     app = Flask(__name__, static_folder='client/build')
     
-    # Configure the app
     basedir = os.path.abspath(os.path.dirname(__file__))
     app.config.update(
         SQLALCHEMY_DATABASE_URI=f"sqlite:///{os.path.join(basedir, 'database.sqlite')}",
@@ -21,7 +20,6 @@ def create_app():
         UPLOAD_FOLDER=os.path.join(basedir, "uploads"),
     )
 
-    # Initialize extensions
     CORS(app)
     db.init_app(app)
 
@@ -31,7 +29,6 @@ def create_app():
     app.register_blueprint(uploads)
     app.register_blueprint(chat)
 
-    # Ensure upload directory exists
     os.makedirs(app.config["UPLOAD_FOLDER"], exist_ok=True)
 
     # Create database tables
